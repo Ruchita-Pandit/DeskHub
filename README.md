@@ -7,6 +7,8 @@ A vanilla-JS support ticket dashboard. Build it after completing the 27-session 
 
 ---
 
+
+
 ## Quick Start
 
 ```bash
