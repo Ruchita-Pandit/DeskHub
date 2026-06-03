@@ -1,0 +1,17 @@
+{
+  "name": "deskhub-jstraining",
+  "version": "1.0.0",
+  "type": "module",
+
+  "scripts": {
+    "dev": "vite",
+    "server": "json-server --watch db.json --port 3001"
+  },
+
+  "dependencies": {},
+
+  "devDependencies": {
+    "vite": "^5.2.1",
+    "json-server": "^1.0.0-beta.3"
+  }
+}
