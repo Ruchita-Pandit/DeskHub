@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "https://deskhub-ebnt.onrender.com";
 
 async function request(endpoint, options = {}){
 
