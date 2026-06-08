@@ -1,121 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeskHub - Tickets</title>
-    <link rel="stylesheet" href="./styles/main.css">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>DeskHub Tickets</title>
+
+    <link rel="stylesheet"
+          href="styles/main.css">
+
 </head>
+
 <body data-page="tickets-list">
-    <header class="dashboard-header">
-        <h1>DeskHub - Tickets</h1>
-        <nav class="header-nav">
-            <a href="dashboard.html">Dashboard</a>
-            <a href="tickets.html" class="active">Tickets</a>
-            <button type="button" id="logout-btn" class="btn-secondary">Logout</button>
-        </nav>
+
+    <header class="page-header">
+
+        <h1>Support Tickets</h1>
+
+        <button id="logoutBtn">
+            Logout
+        </button>
+
     </header>
 
-    <main class="tickets-main">
-       
-        <section class="tickets-controls">
-            <div class="search-section">
-                <label for="search-input" class="sr-only">Search tickets</label>
-                <input type="search" id="search-input" placeholder="Search tickets..." class="search-input">
-            </div>
+    <main class="tickets-page">
 
-            <div class="filters-section">
-                <div class="filter-group">
-                    <label for="filter-status">Status</label>
-                    <select id="filter-status" class="filter-select">
-                        <option value="">All Status</option>
-                        <option value="open">Open</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                    </select>
-                </div>
+        <div id="loadingState"
+             class="loading-state">
 
-                <div class="filter-group">
-                    <label for="filter-priority">Priority</label>
-                    <select id="filter-priority" class="filter-select">
-                        <option value="">All Priority</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <label for="filter-assignee">Assignee</label>
-                    <select id="filter-assignee" class="filter-select">
-                        <option value="">All Assignees</option>
-                        
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <label for="sort-by">Sort By</label>
-                    <select id="sort-by" class="filter-select">
-                        <option value="createdAt">Date Created</option>
-                        <option value="updatedAt">Last Updated</option>
-                        <option value="priority">Priority</option>
-                        <option value="status">Status</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="actions-section">
-                <button type="button" id="filter-reset-btn" class="btn-secondary">Reset filters</button>
-                <button id="new-ticket-btn" class="btn-primary">New Ticket</button>
-            </div>
-        </section>
-
-        
-        <div id="loading" class="loading-state" hidden role="status" aria-live="polite">
-            <div class="loading-spinner" aria-hidden="true"></div>
-            <p class="loading-text">Loading tickets…</p>
+            Loading tickets...
         </div>
 
-        
-        <div id="error" class="error-state" hidden role="alert">
-            <div class="error-state-inner">
-                <p id="error-text" class="error-text">Failed to load tickets.</p>
-                <button type="button" id="error-retry" class="btn-secondary">Retry</button>
-            </div>
+        <div id="errorState"
+             class="error-state hidden">
+
+            <p>
+                Failed to load tickets
+            </p>
+
+            <button id="retryBtn">
+                Retry
+            </button>
+
         </div>
 
-        <section class="tickets-section">
-            <table id="tickets-table" class="tickets-table">
+        <div id="emptyState"
+             class="empty-state hidden">
+
+            No tickets found
+        </div>
+
+        <div id="tableContainer"
+             class="hidden">
+
+            <table class="tickets-table">
+
                 <thead>
+
                     <tr>
-                        <th scope="col">ID</th>
-                        <th scope="col">Title</th>
-                        <th scope="col">Customer</th>
-                        <th scope="col">Priority</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Assignee</th>
-                        <th scope="col">Created</th>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Customer</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Assignee</th>
+                        <th>Created</th>
                     </tr>
+
                 </thead>
-                <tbody id="tickets-tbody">
-                    
+
+                <tbody id="ticketsTableBody">
+
                 </tbody>
+
             </table>
 
-            
-            <div id="empty-state" class="empty-state" hidden role="status" aria-live="polite">
-                <h3>No tickets found</h3>
-                <p>Try adjusting your search or filter criteria.</p>
-            </div>
-        </section>
+        </div>
 
-        <nav id="pagination" class="pagination" aria-label="Tickets pagination">
-            
-        </nav>
     </main>
 
-    <script type="module" src="src/main.js"></script>
+    <script type="module"
+            src="../src/main.js">
+
+    </script>
+
 </body>
 </html>
