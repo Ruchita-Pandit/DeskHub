@@ -2,7 +2,7 @@ import {
     listTickets,
     listUsers
 }
-from "../api/tickets.js";
+from "../api/ticket.js";
 
 import {
     formatDate

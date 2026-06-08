@@ -4,7 +4,7 @@ import * as storage from "../utils/storage.js";
 
 export async function login(email, password){
 
-    const users = await get(
+    const { data: users } = await get(
         `/users?email=${email}`
     );
 

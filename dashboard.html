@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
 
-    <link rel="stylesheet" href="public\styles\main.css">
+    <link rel="stylesheet" href="./public/styles/main.css">
 </head>
 
 <body data-page="dashboard">
@@ -14,29 +14,17 @@
 
         <h1>You're In!</h1>
 
-        <button id="logoutBtn">
+        <p>
+            <a href="./ticket.html">View Tickets</a>
+        </p>
+
+        <button id="logoutBtn" type="button">
             Logout
         </button>
 
     </main>
 
-    <main class="dashboard">
-
-    <h1>You're In!</h1>
-
-    <a href="tickets.html">
-        View Tickets
-    </a>
-
-    <br><br>
-
-    <button id="logoutBtn">
-        Logout
-    </button>
-
-</main>
-
-    <script type="module" src="../src/main.js"></script>
+    <script type="module" src="./public/src/main.js"></script>
 
 </body>
 </html>
