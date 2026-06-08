@@ -1,37 +1,49 @@
-import { post } from "./client.js";
+import { get } from "./client.js";
 
-import {
-  set,
-  get,
-  remove,
-} from "../utils/storage.js";
+import * as storage from "../utils/storage.js";
 
-const USER_KEY = "user";
+export async function login(email, password){
 
-export async function login(
-  email,
-  password
-) {
+    const users = await get(
+        `/users?email=${email}`
+    );
 
-  const response =
-    await post("/login", {
-      email,
-      password,
-    });
+    const user = users[0];
 
-  set(USER_KEY, response);
+    if(!user){
 
-  return response;
+        throw new Error(
+            "User not found"
+        );
+    }
+
+    if(user.password !== password){
+
+        throw new Error(
+            "Invalid password"
+        );
+    }
+
+    const token = crypto.randomUUID();
+
+    storage.set("token", token);
+
+    storage.set("user", user);
+
+    return user;
 }
 
-export function logout() {
-  remove(USER_KEY);
+export function logout(){
+
+    storage.clear();
 }
 
-export function getCurrentUser() {
-  return get(USER_KEY);
+export function getCurrentUser(){
+
+    return storage.get("user");
 }
 
-export function isAuthenticated() {
-  return !!get(USER_KEY);
+export function isAuthenticated(){
+
+    return !!storage.get("token");
 }

@@ -1,23 +1,23 @@
 import {
-  initLogin,
-  initLogout,
-} from "./modules/auth.js";
+    initLogin,
+    initDashboard
+}
+from "./modules/auth.js";
 
-const currentPage =
-  document.body.dataset.page;
+const page =
+    document.body.dataset.page;
 
-switch (currentPage) {
+switch(page){
 
-  case "login":
-    initLogin();
-    break;
+    case "login":
 
-  case "dashboard":
-    initLogout();
-    break;
+        initLogin();
 
-  default:
-    console.log(
-      "No page matched"
-    );
+        break;
+
+    case "dashboard":
+
+        initDashboard();
+
+        break;
 }

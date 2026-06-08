@@ -1,71 +1,77 @@
 import {
-  login,
-  logout,
-} from "../api/auth.js";
+    login,
+    logout,
+    isAuthenticated
+}
+from "../api/auth.js";
 
-export function initLogin() {
+const loginForm =
+    document.getElementById("loginForm");
 
-  const form =
-    document.getElementById(
-      "loginForm"
-    );
+const errorMessage =
+    document.getElementById("errorMessage");
 
-  const errorMessage =
-    document.getElementById(
-      "errorMessage"
-    );
+const logoutBtn =
+    document.getElementById("logoutBtn");
 
-  form.addEventListener(
-    "submit",
-    async (event) => {
+export function initLogin(){
 
-      event.preventDefault();
-
-      errorMessage.textContent = "";
-
-      const formData =
-        new FormData(form);
-
-      const email =
-        formData.get("email");
-
-      const password =
-        formData.get("password");
-
-      try {
-
-        await login(
-          email,
-          password
-        );
+    if(isAuthenticated()){
 
         window.location.href =
-          "/dashboard.html";
+            "dashboard.html";
 
-      } catch (error) {
-
-        errorMessage.textContent =
-          error.message;
-      }
+        return;
     }
-  );
+
+    loginForm.addEventListener(
+        "submit",
+        async (event)=>{
+
+            event.preventDefault();
+
+            const email =
+                document.getElementById("email").value;
+
+            const password =
+                document.getElementById("password").value;
+
+            errorMessage.textContent = "";
+
+            try{
+
+                await login(email, password);
+
+                window.location.href =
+                    "dashboard.html";
+
+            }
+            catch(error){
+
+                errorMessage.textContent =
+                    error.message;
+            }
+        }
+    );
 }
 
-export function initLogout() {
+export function initDashboard(){
 
-  const logoutBtn =
-    document.getElementById(
-      "logoutBtn"
-    );
+    if(!isAuthenticated()){
 
-  logoutBtn.addEventListener(
-    "click",
-    () => {
+        window.location.href = "index.html";
 
-      logout();
-
-      window.location.href =
-        "/index.html";
+        return;
     }
-  );
+
+    logoutBtn.addEventListener(
+        "click",
+        ()=>{
+
+            logout();
+
+            window.location.href =
+                "index.html";
+        }
+    );
 }
