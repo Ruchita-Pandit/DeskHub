@@ -1,4 +1,4 @@
-# DeskHub — Capstone Project
+# DeskHub---- project
 
 A vanilla-JS support ticket dashboard. Build it after completing the 27-session JavaScript training.
 
