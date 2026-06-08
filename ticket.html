@@ -10,7 +10,7 @@
     <title>DeskHub Tickets</title>
 
     <link rel="stylesheet"
-          href="styles/main.css">
+          href="public\styles\main.css">
 
 </head>
 
@@ -53,6 +53,72 @@
             No tickets found
         </div>
 
+        <section class="toolbar">
+
+    <input
+        type="text"
+        id="searchInput"
+        placeholder="Search tickets..."
+    >
+
+    <select id="statusFilter">
+
+        <option value="">
+            All Status
+        </option>
+
+        <option value="open">
+            Open
+        </option>
+
+        <option value="in-progress">
+            In Progress
+        </option>
+
+        <option value="resolved">
+            Resolved
+        </option>
+
+    </select>
+
+    <select id="priorityFilter">
+
+        <option value="">
+            All Priority
+        </option>
+
+        <option value="urgent">
+            Urgent
+        </option>
+
+        <option value="high">
+            High
+        </option>
+
+        <option value="medium">
+            Medium
+        </option>
+
+        <option value="low">
+            Low
+        </option>
+
+    </select>
+
+    <select id="sortSelect">
+
+        <option value="desc">
+            Newest First
+        </option>
+
+        <option value="asc">
+            Oldest First
+        </option>
+
+    </select>
+
+</section>
+
         <div id="tableContainer"
              class="hidden">
 
@@ -77,6 +143,12 @@
                 </tbody>
 
             </table>
+
+            <section
+    id="pagination"
+    class="pagination hidden">
+
+</section>
 
         </div>
 

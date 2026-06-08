@@ -160,3 +160,47 @@ button:hover{
 
     color:green;
 }
+
+.toolbar{
+
+    display:flex;
+
+    gap:15px;
+
+    margin-bottom:25px;
+
+    flex-wrap:wrap;
+}
+
+.toolbar input,
+.toolbar select{
+
+    padding:10px;
+
+    border:1px solid #ccc;
+
+    border-radius:5px;
+}
+
+.pagination{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:10px;
+
+    margin-top:25px;
+}
+
+.pagination button{
+
+    width:auto;
+
+    padding:8px 14px;
+}
+
+.pagination button.active{
+
+    font-weight:bold;
+}

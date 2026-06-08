@@ -20,7 +20,13 @@ async function request(endpoint, options = {}){
         );
     }
 
-    return response.json();
+    const data =
+    await response.json();
+
+return {
+    data,
+    headers: response.headers
+};
 }
 
 export function get(endpoint){
