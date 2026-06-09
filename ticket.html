@@ -1,131 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeskHub Tickets</title>
-
-    <link rel="stylesheet"
-          href="./public/styles/main.css">
-
+    <link rel="stylesheet" href="./public/styles/main.css">
 </head>
 
 <body data-page="tickets-list">
 
     <header class="page-header">
-
         <h1>Support Tickets</h1>
-
-        <button id="logoutBtn">
-            Logout
-        </button>
-
+        <button id="logoutBtn" type="button" class="btn btn--header">Logout</button>
     </header>
 
     <main class="tickets-page">
 
-        <div id="loadingState"
-             class="loading-state">
-
-            Loading tickets...
-        </div>
-
-        <div id="errorState"
-             class="error-state hidden">
-
-            <p>
-                Failed to load tickets
-            </p>
-
-            <button id="retryBtn">
-                Retry
-            </button>
-
-        </div>
-
-        <div id="emptyState"
-             class="empty-state hidden">
-
-            No tickets found
-        </div>
-
         <section class="toolbar">
+            <button type="button" id="newTicketBtn" class="btn btn--primary btn--toolbar">New Ticket</button>
+            <input type="text" id="searchInput" placeholder="Search tickets…" class="toolbar-grow">
+            <select id="statusFilter" class="input-control">
+                <option value="">All Status</option>
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+            </select>
+            <select id="priorityFilter" class="input-control">
+                <option value="">All Priority</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+            <select id="sortSelect" class="input-control">
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+            </select>
+        </section>
 
-    <input
-        type="text"
-        id="searchInput"
-        placeholder="Search tickets..."
-    >
+        <div id="loadingState" class="loading-state">Loading tickets…</div>
 
-    <select id="statusFilter">
+        <div id="errorState" class="error-state hidden">
+            <p>Failed to load tickets</p>
+            <button type="button" id="retryBtn" class="btn btn--secondary">Retry</button>
+        </div>
 
-        <option value="">
-            All Status
-        </option>
+        <div id="emptyState" class="empty-state hidden">No tickets found</div>
 
-        <option value="open">
-            Open
-        </option>
-
-        <option value="in-progress">
-            In Progress
-        </option>
-
-        <option value="resolved">
-            Resolved
-        </option>
-
-    </select>
-
-    <select id="priorityFilter">
-
-        <option value="">
-            All Priority
-        </option>
-
-        <option value="urgent">
-            Urgent
-        </option>
-
-        <option value="high">
-            High
-        </option>
-
-        <option value="medium">
-            Medium
-        </option>
-
-        <option value="low">
-            Low
-        </option>
-
-    </select>
-
-    <select id="sortSelect">
-
-        <option value="desc">
-            Newest First
-        </option>
-
-        <option value="asc">
-            Oldest First
-        </option>
-
-    </select>
-
-</section>
-
-        <div id="tableContainer"
-             class="hidden">
-
+        <div id="tableContainer" class="hidden">
             <table class="tickets-table">
-
                 <thead>
-
                     <tr>
                         <th>ID</th>
                         <th>Title</th>
@@ -135,26 +60,13 @@
                         <th>Assignee</th>
                         <th>Created</th>
                     </tr>
-
                 </thead>
-
-                <tbody id="ticketsTableBody">
-
-                </tbody>
-
+                <tbody id="ticketsTableBody"></tbody>
             </table>
-
-            <section
-    id="pagination"
-    class="pagination hidden">
-
-</section>
-
+            <section id="pagination" class="pagination hidden"></section>
         </div>
-
     </main>
 
     <script type="module" src="./public/src/main.js"></script>
-
 </body>
 </html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskHub — Ticket</title>
+    <link rel="stylesheet" href="./public/styles/main.css">
+</head>
+
+<body data-page="ticket-detail">
+
+    <header class="page-header">
+        <div class="page-header__left">
+            <a id="backToList" class="link-back" href="./ticket.html">← Tickets</a>
+            <h1 class="page-header__title" id="detailTitle">Ticket</h1>
+        </div>
+        <button id="logoutBtn" type="button" class="btn btn--header">Logout</button>
+    </header>
+
+    <main class="detail-page">
+
+        <div id="detailLoading" class="loading-state">Loading ticket…</div>
+
+        <div id="detailError" class="error-state hidden">
+            <p>Could not load this ticket.</p>
+            <button type="button" id="detailRetry" class="btn btn--secondary">Retry</button>
+        </div>
+
+        <div id="detailContent" class="detail-content hidden">
+
+            <section class="detail-card">
+                <h2 class="section-title">Details</h2>
+                <p id="detailDescription" class="detail-description"></p>
+                <dl class="detail-grid">
+                    <div><dt>Customer</dt><dd id="detailCustomerName"></dd></div>
+                    <div><dt>Email</dt><dd id="detailCustomerEmail"></dd></div>
+                    <div><dt>Category</dt><dd id="detailCategory"></dd></div>
+                    <div><dt>Created</dt><dd id="detailCreated"></dd></div>
+                    <div><dt>Updated</dt><dd id="detailUpdated"></dd></div>
+                </dl>
+            </section>
+
+            <section class="detail-card">
+                <h2 class="section-title">Actions</h2>
+                <div class="detail-actions">
+                    <label class="field-inline">
+                        <span>Status</span>
+                        <select id="detailStatus" class="input-control">
+                            <option value="open">Open</option>
+                            <option value="in-progress">In progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </label>
+                    <label class="field-inline">
+                        <span>Priority</span>
+                        <select id="detailPriority" class="input-control">
+                            <option value="urgent">Urgent</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </label>
+                    <label class="field-inline">
+                        <span>Assignee</span>
+                        <select id="detailAssignee" class="input-control"></select>
+                    </label>
+                    <button type="button" id="deleteTicketBtn" class="btn btn--danger btn--inline">Delete ticket</button>
+                </div>
+            </section>
+
+            <section class="detail-card">
+                <h2 class="section-title">Comments</h2>
+                <div id="commentsList" class="comments-list"></div>
+                <form id="commentForm" class="comment-form">
+                    <label for="commentContent" class="sr-only">New comment</label>
+                    <textarea id="commentContent" class="input-control textarea" rows="3" placeholder="Add a comment…" required></textarea>
+                    <button type="submit" id="commentSubmit" class="btn btn--primary btn--inline">Post comment</button>
+                </form>
+            </section>
+
+        </div>
+    </main>
+
+    <script type="module" src="./public/src/main.js"></script>
+</body>
+</html>

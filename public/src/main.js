@@ -9,6 +9,11 @@ import {
 }
 from "./modules/tickets.js";
 
+import {
+    initTicketDetail
+}
+from "./modules/ticketDetail.js";
+
 const page =
     document.body.dataset.page;
 
@@ -24,5 +29,9 @@ switch(page){
 
     case "tickets-list":
         initTicketsList();
+        break;
+
+    case "ticket-detail":
+        initTicketDetail();
         break;
 }
