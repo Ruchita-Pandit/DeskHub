@@ -11,48 +11,96 @@ export function listTickets(params = {}){
     const query =
         new URLSearchParams();
 
-    if(params.search){
+    const term =
+        typeof params.search === "string"
+            ? params.search.trim()
+            : "";
 
-        query.append(
-            "q",
-            params.search
+    if(term){
+
+        const where = {};
+
+        if(params.status){
+
+            where.status = {
+                eq: params.status
+            };
+        }
+
+        if(params.priority){
+
+            where.priority = {
+                eq: params.priority
+            };
+        }
+
+        where.or = [
+            {
+                title:{
+                    contains: term
+                }
+            },
+            {
+                description:{
+                    contains: term
+                }
+            },
+            {
+                customerName:{
+                    contains: term
+                }
+            },
+            {
+                customerEmail:{
+                    contains: term
+                }
+            }
+        ];
+
+        query.set(
+            "_where",
+            JSON.stringify(where)
         );
     }
+    else{
 
-    if(params.status){
+        if(params.status){
 
-        query.append(
-            "status",
-            params.status
-        );
+            query.append(
+                "status",
+                params.status
+            );
+        }
+
+        if(params.priority){
+
+            query.append(
+                "priority",
+                params.priority
+            );
+        }
     }
 
-    if(params.priority){
+    const sortField =
+        params.order === "asc"
+            ? "createdAt"
+            : "-createdAt";
 
-        query.append(
-            "priority",
-            params.priority
-        );
-    }
-
-    query.append(
+    query.set(
         "_sort",
-        "createdAt"
+        sortField
     );
 
-    query.append(
-        "_order",
-        params.order || "desc"
-    );
-
-    query.append(
+    query.set(
         "_page",
-        params.page || 1
+        String(
+            params.page || 1
+        )
     );
 
-    query.append(
-        "_limit",
-        10
+    query.set(
+        "_per_page",
+        "10"
     );
 
     return get(

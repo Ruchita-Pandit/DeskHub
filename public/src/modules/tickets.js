@@ -663,6 +663,80 @@ function openCreateTicketModal(){
     );
 }
 
+function extractTicketsArray(body){
+
+    if(Array.isArray(body)){
+
+        return body;
+    }
+
+    if(body && typeof body === "object"){
+
+        if(Array.isArray(body.data)){
+
+            return body.data;
+        }
+
+        if(Array.isArray(body.tickets)){
+
+            return body.tickets;
+        }
+
+        if(Array.isArray(body.results)){
+
+            return body.results;
+        }
+    }
+
+    return [];
+}
+
+function extractTicketsTotal(body, tickets, headers){
+
+    if(
+        body &&
+        typeof body.items === "number" &&
+        !Number.isNaN(body.items)
+    ){
+
+        return body.items;
+    }
+
+    const hdr =
+        headers &&
+        typeof headers.get === "function"
+            ? headers.get("X-Total-Count")
+            : null;
+
+    if(hdr){
+
+        const n =
+            Number(hdr);
+
+        if(!Number.isNaN(n)){
+
+            return n;
+        }
+    }
+
+    return tickets.length;
+}
+
+function extractUsersArray(raw){
+
+    if(Array.isArray(raw)){
+
+        return raw;
+    }
+
+    if(raw && typeof raw === "object" && Array.isArray(raw.data)){
+
+        return raw.data;
+    }
+
+    return [];
+}
+
 async function refreshTickets(){
 
     showLoading();
@@ -679,22 +753,30 @@ async function refreshTickets(){
             listUsers()
         ]);
 
-        const tickets =
+        const body =
             ticketsResponse.data;
 
-        const users =
-            usersResponse.data;
+        const tickets =
+            extractTicketsArray(body);
 
         const total =
-            Number(
-                ticketsResponse.headers.get(
-                    "X-Total-Count"
-                )
+            extractTicketsTotal(
+                body,
+                tickets,
+                ticketsResponse.headers
+            );
+
+        const users =
+            extractUsersArray(
+                usersResponse.data
             );
 
         buildUsersMap(users);
 
-        if(tickets.length === 0){
+        if(
+            !Array.isArray(tickets) ||
+            tickets.length === 0
+        ){
 
             showEmpty();
 
@@ -728,7 +810,12 @@ function buildUsersMap(users){
 
 function renderTable(tickets){
 
-    const rows = tickets.map((ticket)=>{
+    const list =
+        Array.isArray(tickets)
+            ? tickets
+            : [];
+
+    const rows = list.map((ticket)=>{
 
         return `
             <tr class="ticket-row" data-ticket-id="${ticket.id}" role="link" tabindex="0">

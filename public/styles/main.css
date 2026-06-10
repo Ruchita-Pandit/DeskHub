@@ -51,13 +51,17 @@ body{
 }
 
 button{
-    width:100%;
     padding:10px;
     border:none;
     background:#0077ff;
     color:white;
     border-radius:5px;
     cursor:pointer;
+}
+
+.login-form button,
+.login-container .login-form button{
+    width:100%;
 }
 
 button:hover{
@@ -623,4 +627,34 @@ button:hover{
 .page-header h1{
     margin:0;
     font-size:22px;
+}
+
+.dashboard button{
+    width:auto;
+    min-width:140px;
+}
+
+.tickets-page .toolbar{
+    align-items:stretch;
+    background:#fff;
+    padding:14px 16px;
+    border-radius:10px;
+    border:1px solid #e0e0e0;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+
+.tickets-page .toolbar .toolbar-grow,
+.tickets-page .toolbar .input-control{
+    flex:1 1 160px;
+    min-width:0;
+    width:auto;
+    max-width:100%;
+    background:#fff;
+    color:#111;
+    min-height:42px;
+}
+
+.tickets-page .toolbar .btn--toolbar{
+    flex:0 0 auto;
+    align-self:center;
 }
