@@ -1,13 +1,22 @@
 import {
-    listTickets
-}
-from "../api/tickets.js";
+    listTickets,
+    createTicket,
+} from "../api/tickets.js";
 
 import {
     isAuthenticated,
-    logout
-}
-from "../api/auth.js";
+    logout,
+    getCurrentUser,
+} from "../api/auth.js";
+
+import { openModal, closeModal, showToast } from "./ui.js";
+import {
+    validateForm,
+    required,
+    minLength,
+    email,
+    oneOf,
+} from "./form.js";
 
 import {
     formatDate
@@ -78,6 +87,31 @@ const pagination =
     document.getElementById(
         "pagination"
     );
+
+const newTicketBtn = document.getElementById("newTicketBtn");
+
+const newTicketFieldRules = {
+    title: [required("Title is required"), minLength(3, "Title must be at least 3 characters")],
+    description: [
+        required("Description is required"),
+        minLength(10, "Description must be at least 10 characters"),
+    ],
+    customerName: [required("Customer name is required")],
+    customerEmail: [required("Customer email is required"), email()],
+    category: [
+        required("Select a category"),
+        oneOf(
+            ["auth", "billing", "bug", "feature", "general"],
+            "Choose a valid category"
+        ),
+    ],
+    priority: [
+        oneOf(
+            ["low", "medium", "high", "urgent"],
+            "Choose a valid priority"
+        ),
+    ],
+};
 
 const state = {
 
@@ -167,6 +201,112 @@ function bindEvents(){
             refreshTickets();
         }
     );
+
+    if (newTicketBtn) {
+        newTicketBtn.addEventListener("click", openNewTicketModal);
+    }
+}
+
+function buildNewTicketForm() {
+    const form = document.createElement("form");
+    form.className = "dh-new-ticket-form";
+    form.setAttribute("novalidate", "");
+    form.innerHTML = `
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-title">Title</label>
+        <input class="search-input" type="text" id="nt-title" name="title" required maxlength="200" placeholder="Short summary of the issue" autocomplete="off">
+      </div>
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-description">Description</label>
+        <textarea class="search-input" id="nt-description" name="description" required maxlength="8000" placeholder="What happened? What did you expect?" rows="4"></textarea>
+      </div>
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-customerName">Customer name</label>
+        <input class="search-input" type="text" id="nt-customerName" name="customerName" required maxlength="120" placeholder="Contact name" autocomplete="name">
+      </div>
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-customerEmail">Customer email</label>
+        <input class="search-input" type="email" id="nt-customerEmail" name="customerEmail" required maxlength="200" placeholder="name@example.com" autocomplete="email">
+      </div>
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-category">Category</label>
+        <select class="filter-select" id="nt-category" name="category" required>
+          <option value="">Select category</option>
+          <option value="auth">Authentication</option>
+          <option value="billing">Billing</option>
+          <option value="bug">Bug</option>
+          <option value="feature">Feature</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+      <div class="dh-field">
+        <label class="dh-field-label" for="nt-priority">Priority</label>
+        <select class="filter-select" id="nt-priority" name="priority" required>
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="dh-modal-actions">
+        <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
+        <button type="submit" class="btn-primary">Create ticket</button>
+      </div>
+    `;
+
+    const cancelBtn = form.querySelector('[data-action="cancel"]');
+    cancelBtn.addEventListener("click", () => closeModal(undefined));
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const { isValid } = validateForm(form, newTicketFieldRules);
+        if (!isValid) return;
+
+        const fd = new FormData(form);
+        const me = getCurrentUser();
+        const payload = {
+            title: String(fd.get("title") ?? "").trim(),
+            description: String(fd.get("description") ?? "").trim(),
+            customerName: String(fd.get("customerName") ?? "").trim(),
+            customerEmail: String(fd.get("customerEmail") ?? "").trim(),
+            category: String(fd.get("category") ?? "").trim(),
+            priority: String(fd.get("priority") ?? "medium").trim(),
+            status: "open",
+            assignedTo:
+                me && me.id != null && Number.isFinite(Number(me.id))
+                    ? Number(me.id)
+                    : null,
+        };
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            const created = await createTicket(payload);
+            const id = created && typeof created === "object" ? created.id : null;
+            showToast("Ticket created.", "success");
+            closeModal(true);
+            if (id != null) {
+                window.location.href = `ticket-detail.html?id=${encodeURIComponent(String(id))}`;
+                return;
+            }
+            state.page = 1;
+            state.order = "desc";
+            if (sortSelect) sortSelect.value = "desc";
+            await refreshTickets();
+        } catch (err) {
+            console.error(err);
+            showToast(err?.message || "Could not create ticket.", "error");
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    });
+
+    return form;
+}
+
+function openNewTicketModal() {
+    const form = buildNewTicketForm();
+    void openModal(form, { title: "New ticket" });
 }
 
 async function refreshTickets(){
