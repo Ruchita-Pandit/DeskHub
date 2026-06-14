@@ -1,62 +1,49 @@
 const BASE_URL = "https://deskhub-ebnt.onrender.com";
 
-async function request(endpoint, options = {}){
+async function request(endpoint, options = {}) {
+  const response = await fetch(BASE_URL + endpoint, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    ...options,
+  });
 
-    const response = await fetch(
-        BASE_URL + endpoint,
-        {
-            headers:{
-                "Content-Type":"application/json"
-            },
+  if (!response.ok) {
+    throw new Error("Request Failed");
+  }
 
-            ...options
-        }
-    );
+  const data = await response.json();
 
-    if(!response.ok){
-
-        throw new Error(
-            "Request Failed"
-        );
-    }
-
-    const data =
-    await response.json();
-
-return {
+  return {
     data,
-    headers: response.headers
-};
+    headers: response.headers,
+  };
 }
 
-export function get(endpoint){
-
-    return request(endpoint);
+/** Returns parsed JSON and response headers (needed for X-Total-Count pagination). */
+export async function get(endpoint) {
+  return request(endpoint);
 }
 
-export function post(endpoint, data){
-
-    return request(endpoint,{
-
-        method:"POST",
-
-        body:JSON.stringify(data)
-    });
+export async function post(endpoint, data) {
+  const { data: out } = await request(endpoint, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return out;
 }
 
-export function patch(endpoint, data){
-
-    return request(endpoint,{
-
-        method:"PATCH",
-
-        body:JSON.stringify(data)
-    });
+export async function patch(endpoint, data) {
+  const { data: out } = await request(endpoint, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  return out;
 }
 
-export function del(endpoint){
-
-    return request(endpoint,{
-        method:"DELETE"
-    });
+export async function del(endpoint) {
+  const { data: out } = await request(endpoint, {
+    method: "DELETE",
+  });
+  return out;
 }

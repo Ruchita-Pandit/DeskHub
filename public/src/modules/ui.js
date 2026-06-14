@@ -1,328 +1,337 @@
-const TOAST_DURATION_MS =
-    3000;
 
-let toastContainer =
-    null;
 
-function ensureToastContainer(){
+const TOAST_DURATION_MS = 3000;
+const TOAST_EXIT_MS = 280;
+const MAX_VISIBLE_TOASTS = 6;
 
-    if(toastContainer && document.body.contains(toastContainer)){
+const TOAST_TYPES = new Set(["info", "success", "error", "warning"]);
 
-        return toastContainer;
-    }
+let toastHost = null;
 
-    toastContainer =
-        document.createElement("div");
+let modalBackdrop = null;
+let modalResolver = null;
+let modalKeyHandler = null;
+let modalIsClosing = false;
+let previousActiveElement = null;
 
-    toastContainer.className =
-        "toast-container";
+let loaderEl = null;
+let loaderDepth = 0;
 
-    toastContainer.setAttribute(
-        "aria-live",
-        "polite"
-    );
-
-    document.body.appendChild(toastContainer);
-
-    return toastContainer;
+function ensureToastHost() {
+  if (toastHost && document.body.contains(toastHost)) return toastHost;
+  toastHost = document.createElement("div");
+  toastHost.id = "dh-toast-host";
+  toastHost.className = "dh-toast-host";
+  toastHost.setAttribute("aria-live", "polite");
+  document.body.appendChild(toastHost);
+  return toastHost;
 }
 
-export function showToast(message, variant = "info"){
-
-    const container =
-        ensureToastContainer();
-
-    const el =
-        document.createElement("div");
-
-    el.className =
-        `toast toast--${variant}`;
-
-    el.textContent =
-        message;
-
-    container.appendChild(el);
-
-    window.setTimeout(()=>{
-
-        el.classList.add(
-            "toast--out"
-        );
-
-        window.setTimeout(()=>{
-
-            el.remove();
-
-            if(container.childElementCount === 0){
-
-                container.remove();
-
-                toastContainer = null;
-            }
-        }, 200);
-    }, TOAST_DURATION_MS);
+function removeToastHostIfEmpty(host) {
+  if (host?.childElementCount === 0) {
+    host.remove();
+    toastHost = null;
+  }
 }
 
-export function openModal(options){
+function dismissToastElement(el, { immediate = false } = {}) {
+  if (!el?.isConnected) return;
+  const host = el.parentElement;
 
-    const {
-        title,
-        content,
-        footer
-    } = options;
+  const cleanup = () => {
+    el.remove();
+    if (host) removeToastHostIfEmpty(host);
+  };
 
-    const overlay =
-        document.createElement("div");
+  if (immediate) {
+    cleanup();
+    return;
+  }
 
-    overlay.className =
-        "modal-overlay";
-
-    overlay.setAttribute(
-        "role",
-        "dialog"
-    );
-
-    overlay.setAttribute(
-        "aria-modal",
-        "true"
-    );
-
-    const dialog =
-        document.createElement("div");
-
-    dialog.className =
-        "modal-dialog";
-
-    const header =
-        document.createElement("div");
-
-    header.className =
-        "modal-header";
-
-    const h =
-        document.createElement("h2");
-
-    h.className =
-        "modal-title";
-
-    h.textContent =
-        title;
-
-    const closeBtn =
-        document.createElement("button");
-
-    closeBtn.type =
-        "button";
-
-    closeBtn.className =
-        "modal-close";
-
-    closeBtn.setAttribute(
-        "aria-label",
-        "Close"
-    );
-
-    closeBtn.textContent =
-        "×";
-
-    header.append(h, closeBtn);
-
-    const body =
-        document.createElement("div");
-
-    body.className =
-        "modal-body";
-
-    if(typeof content === "string"){
-
-        body.innerHTML =
-            content;
-    }
-    else if(content){
-
-        body.append(content);
-    }
-
-    dialog.append(header, body);
-
-    if(footer){
-
-        const foot =
-            document.createElement("div");
-
-        foot.className =
-            "modal-footer";
-
-        foot.append(footer);
-
-        dialog.append(foot);
-    }
-
-    overlay.append(dialog);
-
-    document.body.appendChild(overlay);
-
-    let closed =
-        false;
-
-    function close(){
-
-        if(closed){
-
-            return;
-        }
-
-        closed = true;
-
-        document.removeEventListener(
-            "keydown",
-            onKey
-        );
-
-        overlay.remove();
-
-        if(typeof options.onClose === "function"){
-
-            options.onClose();
-        }
-    }
-
-    function onKey(event){
-
-        if(event.key === "Escape"){
-
-            event.preventDefault();
-
-            close();
-        }
-    }
-
-    overlay.addEventListener(
-        "click",
-        (event)=>{
-
-            if(event.target === overlay){
-
-                close();
-            }
-        }
-    );
-
-    closeBtn.addEventListener(
-        "click",
-        close
-    );
-
-    document.addEventListener(
-        "keydown",
-        onKey
-    );
-
-    return {
-        close,
-        root: overlay,
-        body
-    };
+  el.classList.remove("dh-toast--visible");
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    cleanup();
+  };
+  el.addEventListener("transitionend", finish, { once: true });
+  window.setTimeout(finish, TOAST_EXIT_MS);
 }
 
-export function confirmDialog(options){
+function trimOldestToasts(host, maxBeforeAdd) {
+  while (host.childElementCount >= maxBeforeAdd) {
+    const oldest = host.firstElementChild;
+    if (!oldest) break;
+    dismissToastElement(oldest, { immediate: true });
+  }
+}
 
-    const {
-        title = "Confirm",
-        message = "Are you sure?",
-        confirmText = "Yes",
-        cancelText = "No"
-    } = options;
 
-    return new Promise((resolve)=>{
+export function showToast(message, type = "info", opts = {}) {
+  const variant = TOAST_TYPES.has(type) ? type : "info";
+  const duration =
+    typeof opts.duration === "number" && opts.duration >= 0
+      ? opts.duration
+      : TOAST_DURATION_MS;
 
-        const state = {
-            resolved: false
-        };
+  const host = ensureToastHost();
+  trimOldestToasts(host, MAX_VISIBLE_TOASTS);
 
-        let modalRef;
+  const el = document.createElement("div");
+  el.className = `dh-toast dh-toast--${variant}`;
+  el.setAttribute("role", "status");
+  el.textContent = String(message ?? "");
 
-        function finish(value){
+  host.appendChild(el);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => el.classList.add("dh-toast--visible"));
+  });
 
-            if(state.resolved){
+  window.setTimeout(() => dismissToastElement(el), duration);
+}
 
-                return;
-            }
+function teardownModal(result) {
+  if (modalKeyHandler) {
+    document.removeEventListener("keydown", modalKeyHandler);
+    modalKeyHandler = null;
+  }
+  if (modalBackdrop) {
+    modalBackdrop.remove();
+    modalBackdrop = null;
+  }
+  modalIsClosing = false;
+  const resolve = modalResolver;
+  modalResolver = null;
+  if (typeof resolve === "function") {
+    resolve(result);
+  }
+  if (
+    previousActiveElement &&
+    typeof previousActiveElement.focus === "function"
+  ) {
+    previousActiveElement.focus();
+  }
+  previousActiveElement = null;
+}
 
-            state.resolved = true;
 
-            modalRef.close();
+export function closeModal(result) {
+  if (!modalBackdrop || modalIsClosing) return;
 
-            resolve(value);
-        }
+  const backdrop = modalBackdrop;
+  const panel = backdrop.querySelector(".dh-modal-panel");
+  modalIsClosing = true;
 
-        const footer =
-            document.createElement("div");
+  backdrop.classList.remove("dh-modal-backdrop--open");
+  if (panel) panel.classList.remove("dh-modal-panel--open");
 
-        footer.className =
-            "modal-footer modal-footer--row";
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    teardownModal(result);
+  };
 
-        const cancel =
-            document.createElement("button");
+  const target = panel ?? backdrop;
+  target.addEventListener("transitionend", finish, { once: true });
+  window.setTimeout(finish, 320);
+}
 
-        cancel.type =
-            "button";
+function forceCloseModalNoAnimation() {
+  if (modalKeyHandler) {
+    document.removeEventListener("keydown", modalKeyHandler);
+    modalKeyHandler = null;
+  }
+  modalIsClosing = false;
+  if (modalBackdrop) {
+    modalBackdrop.remove();
+    modalBackdrop = null;
+  }
+  const resolve = modalResolver;
+  modalResolver = null;
+  if (typeof resolve === "function") {
+    resolve(undefined);
+  }
+  previousActiveElement = null;
+}
 
-        cancel.className =
-            "btn btn--secondary";
 
-        cancel.textContent =
-            cancelText;
+export function openModal(content, options = {}) {
+  if (modalBackdrop) {
+    forceCloseModalNoAnimation();
+  }
 
-        const confirm =
-            document.createElement("button");
+  const { title } = options;
 
-        confirm.type =
-            "button";
+  return new Promise((resolve) => {
+    modalResolver = resolve;
+    previousActiveElement = document.activeElement;
 
-        confirm.className =
-            "btn btn--danger";
+    const backdrop = document.createElement("div");
+    backdrop.className = "dh-modal-backdrop";
+    backdrop.setAttribute("role", "presentation");
 
-        confirm.textContent =
-            confirmText;
+    const panel = document.createElement("div");
+    panel.className = "dh-modal-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    if (title) panel.setAttribute("aria-labelledby", "dh-modal-title");
 
-        footer.append(cancel, confirm);
+    const header = document.createElement("div");
+    header.className = "dh-modal-header";
 
-        const msg =
-            document.createElement("p");
+    const titleEl = document.createElement("div");
+    titleEl.id = "dh-modal-title";
+    titleEl.className = "dh-modal-title";
+    titleEl.textContent = title || "";
 
-        msg.className =
-            "modal-message";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "dh-modal-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.innerHTML = "&times;";
 
-        msg.textContent =
-            message;
+    header.append(titleEl, closeBtn);
 
-        modalRef =
-            openModal({
-                title,
-                content: msg,
-                footer,
-                onClose(){
+    const body = document.createElement("div");
+    body.className = "dh-modal-body";
+    if (typeof content === "string") {
+      body.innerHTML = content;
+    } else if (content instanceof HTMLElement) {
+      body.appendChild(content);
+    }
 
-                    if(state.resolved){
+    panel.append(header, body);
+    backdrop.appendChild(panel);
+    document.body.appendChild(backdrop);
+    modalBackdrop = backdrop;
 
-                        return;
-                    }
+    const close = () => closeModal(undefined);
 
-                    state.resolved = true;
-
-                    resolve(false);
-                }
-            });
-
-        cancel.addEventListener(
-            "click",
-            ()=>finish(false)
-        );
-
-        confirm.addEventListener(
-            "click",
-            ()=>finish(true)
-        );
+    closeBtn.addEventListener("click", close);
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) close();
     });
+
+    modalKeyHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+      }
+    };
+    document.addEventListener("keydown", modalKeyHandler);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        backdrop.classList.add("dh-modal-backdrop--open");
+        panel.classList.add("dh-modal-panel--open");
+      });
+    });
+
+    const focusable = panel.querySelector(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable && typeof focusable.focus === "function") {
+      focusable.focus();
+    } else {
+      closeBtn.focus();
+    }
+  });
+}
+
+export function confirmDialog(message, opts = {}) {
+  const { okText = "OK", cancelText = "Cancel", title = "Confirm" } = opts;
+
+  const wrap = document.createElement("div");
+  wrap.className = "dh-confirm";
+
+  const p = document.createElement("p");
+  p.className = "dh-confirm-message";
+  p.textContent = String(message ?? "");
+
+  const actions = document.createElement("div");
+  actions.className = "dh-modal-actions";
+
+  const btnCancel = document.createElement("button");
+  btnCancel.type = "button";
+  btnCancel.className = "btn-secondary";
+  btnCancel.textContent = cancelText;
+
+  const btnOk = document.createElement("button");
+  btnOk.type = "button";
+  btnOk.className = "btn-primary";
+  btnOk.textContent = okText;
+
+  actions.append(btnCancel, btnOk);
+  wrap.append(p, actions);
+
+  const promise = openModal(wrap, { title });
+
+  btnCancel.addEventListener("click", () => closeModal(false));
+  btnOk.addEventListener("click", () => closeModal(true));
+
+  return promise.then((v) => v === true);
+}
+
+function ensureLoaderElement(message) {
+  if (loaderEl && document.body.contains(loaderEl)) {
+    const text = loaderEl.querySelector(".dh-loader-text");
+    if (text && message) text.textContent = message;
+    return loaderEl;
+  }
+
+  const root = document.createElement("div");
+  root.id = "dh-fullpage-loader";
+  root.className = "dh-fullpage-loader";
+  root.setAttribute("role", "status");
+  root.setAttribute("aria-live", "polite");
+  root.setAttribute("aria-busy", "true");
+
+  const inner = document.createElement("div");
+  inner.className = "dh-loader-inner";
+
+  const spinner = document.createElement("div");
+  spinner.className = "dh-loader-spinner";
+  spinner.setAttribute("aria-hidden", "true");
+
+  const text = document.createElement("p");
+  text.className = "dh-loader-text";
+  text.textContent = message || "Loading…";
+
+  inner.append(spinner, text);
+  root.appendChild(inner);
+  document.body.appendChild(root);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => root.classList.add("dh-fullpage-loader--visible"));
+  });
+
+  loaderEl = root;
+  return root;
+}
+
+export function showLoader(message = "") {
+  loaderDepth += 1;
+  ensureLoaderElement(message);
+}
+
+
+export function hideLoader() {
+  loaderDepth = Math.max(0, loaderDepth - 1);
+  if (loaderDepth > 0) return;
+
+  if (!loaderEl?.isConnected) {
+    loaderEl = null;
+    return;
+  }
+
+  const el = loaderEl;
+  loaderEl = null;
+  el.classList.remove("dh-fullpage-loader--visible");
+  const done = () => {
+    el.remove();
+  };
+  el.addEventListener("transitionend", done, { once: true });
+  window.setTimeout(done, 220);
 }

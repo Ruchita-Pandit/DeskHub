@@ -1,18 +1,10 @@
-export function debounce(
-    callback,
-    delay = 300
-){
-
+export function debounce(fn, delay) {
     let timer;
-
-    return (...args)=>{
-
-        clearTimeout(timer);
-
-        timer = setTimeout(()=>{
-
-            callback(...args);
-
-        }, delay);
+    return function (...args) {
+      clearTimeout(timer);
+      const ctx = this;
+      timer = setTimeout(() => {
+        fn.apply(ctx, args);
+      }, delay);
     };
-}
+  }

@@ -6,80 +6,118 @@
     <title>DeskHub — Ticket</title>
     <link rel="stylesheet" href="./public/styles/main.css">
 </head>
-
 <body data-page="ticket-detail">
-
-    <header class="page-header">
-        <div class="page-header__left">
-            <a id="backToList" class="link-back" href="./ticket.html">← Tickets</a>
-            <h1 class="page-header__title" id="detailTitle">Ticket</h1>
-        </div>
-        <button id="logoutBtn" type="button" class="btn btn--header">Logout</button>
+    <header class="dashboard-header">
+        <h1>DeskHub</h1>
+        <nav class="header-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="tickets.html">Tickets</a>
+            <button type="button" id="logout-btn" class="btn-secondary">Logout</button>
+        </nav>
     </header>
 
-    <main class="detail-page">
+    <main class="ticket-detail-main">
+        <p class="ticket-detail-back">
+            <a href="tickets.html" class="ticket-detail-back-link">← Back to tickets</a>
+        </p>
 
-        <div id="detailLoading" class="loading-state">Loading ticket…</div>
-
-        <div id="detailError" class="error-state hidden">
-            <p>Could not load this ticket.</p>
-            <button type="button" id="detailRetry" class="btn btn--secondary">Retry</button>
+        <div id="loading" class="loading-state" hidden role="status" aria-live="polite">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p class="loading-text">Loading ticket…</p>
         </div>
 
-        <div id="detailContent" class="detail-content hidden">
+        <div id="error" class="error-state" hidden role="alert">
+            <p id="error-text" class="error-text">Could not load this ticket.</p>
+        </div>
 
-            <section class="detail-card">
-                <h2 class="section-title">Details</h2>
-                <p id="detailDescription" class="detail-description"></p>
-                <dl class="detail-grid">
-                    <div><dt>Customer</dt><dd id="detailCustomerName"></dd></div>
-                    <div><dt>Email</dt><dd id="detailCustomerEmail"></dd></div>
-                    <div><dt>Category</dt><dd id="detailCategory"></dd></div>
-                    <div><dt>Created</dt><dd id="detailCreated"></dd></div>
-                    <div><dt>Updated</dt><dd id="detailUpdated"></dd></div>
-                </dl>
+        <article id="ticket-shell" class="ticket-detail-card" hidden>
+            <header class="ticket-detail-card-header">
+                <span class="ticket-id-badge" id="ticket-id">—</span>
+                <h1 id="ticket-title" class="ticket-detail-title">Ticket</h1>
+            </header>
+
+            <dl class="ticket-meta" id="ticket-meta">
+                <div class="ticket-meta-row">
+                    <dt>Customer</dt>
+                    <dd id="ticket-customer">—</dd>
+                </div>
+                <div class="ticket-meta-row">
+                    <dt>Email</dt>
+                    <dd id="ticket-customer-email">—</dd>
+                </div>
+                <div class="ticket-meta-row">
+                    <dt>Category</dt>
+                    <dd id="ticket-category">—</dd>
+                </div>
+                <div class="ticket-meta-row">
+                    <dt>Created</dt>
+                    <dd id="ticket-created">—</dd>
+                </div>
+                <div class="ticket-meta-row">
+                    <dt>Updated</dt>
+                    <dd id="ticket-updated">—</dd>
+                </div>
+            </dl>
+
+            <section class="ticket-description-section">
+                <h2 class="ticket-section-heading">Description</h2>
+                <p id="ticket-description" class="ticket-description">—</p>
             </section>
 
-            <section class="detail-card">
-                <h2 class="section-title">Actions</h2>
-                <div class="detail-actions">
-                    <label class="field-inline">
-                        <span>Status</span>
-                        <select id="detailStatus" class="input-control">
+            <section class="ticket-controls-section" aria-labelledby="ticket-controls-heading">
+                <div class="ticket-controls-heading-row">
+                    <h2 id="ticket-controls-heading" class="ticket-section-heading">Update ticket</h2>
+                    <div class="ticket-controls-toolbar">
+                        <button type="button" id="edit-ticket-btn" class="btn-secondary">Edit</button>
+                        <button type="button" id="save-ticket-btn" class="btn-primary" hidden>Save</button>
+                        <button type="button" id="cancel-edit-btn" class="btn-secondary" hidden>Cancel</button>
+                    </div>
+                </div>
+                <div id="ticket-controls-grid" class="ticket-controls-grid">
+                    <div class="filter-group">
+                        <label for="status-select">Status</label>
+                        <select id="status-select" class="filter-select" disabled>
                             <option value="open">Open</option>
-                            <option value="in-progress">In progress</option>
+                            <option value="in-progress">In Progress</option>
                             <option value="resolved">Resolved</option>
                             <option value="closed">Closed</option>
                         </select>
-                    </label>
-                    <label class="field-inline">
-                        <span>Priority</span>
-                        <select id="detailPriority" class="input-control">
-                            <option value="urgent">Urgent</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
+                    </div>
+                    <div class="filter-group">
+                        <label for="priority-select">Priority</label>
+                        <select id="priority-select" class="filter-select" disabled>
                             <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
                         </select>
-                    </label>
-                    <label class="field-inline">
-                        <span>Assignee</span>
-                        <select id="detailAssignee" class="input-control"></select>
-                    </label>
-                    <button type="button" id="deleteTicketBtn" class="btn btn--danger btn--inline">Delete ticket</button>
+                    </div>
+                    <div class="filter-group">
+                        <label for="assignee-select">Assignee</label>
+                        <select id="assignee-select" class="filter-select" disabled>
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
                 </div>
             </section>
 
-            <section class="detail-card">
-                <h2 class="section-title">Comments</h2>
-                <div id="commentsList" class="comments-list"></div>
-                <form id="commentForm" class="comment-form">
-                    <label for="commentContent" class="sr-only">New comment</label>
-                    <textarea id="commentContent" class="input-control textarea" rows="3" placeholder="Add a comment…" required></textarea>
-                    <button type="submit" id="commentSubmit" class="btn btn--primary btn--inline">Post comment</button>
-                </form>
+            <section class="ticket-actions-section" aria-label="Dangerous actions">
+                <button type="button" id="delete-btn" class="btn-danger">Delete ticket</button>
             </section>
+        </article>
 
-        </div>
+        <section id="comments-shell" class="comments-panel" hidden aria-labelledby="comments-heading">
+            <h2 id="comments-heading" class="ticket-section-heading">Comments</h2>
+            <ul id="comments-list" class="comments-list" aria-live="polite"></ul>
+
+            <div class="new-comment-box">
+                <label for="new-comment" class="new-comment-label">Add a comment</label>
+                <textarea id="new-comment" class="new-comment-input" rows="3" placeholder="Write a comment…"></textarea>
+                <div class="new-comment-actions">
+                    <button type="button" id="add-comment-btn" class="btn-primary">Post comment</button>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script type="module" src="./public/src/main.js"></script>

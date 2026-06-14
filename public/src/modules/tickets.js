@@ -1,9 +1,13 @@
 import {
-    listTickets,
-    listUsers,
-    createTicket
+    listTickets
 }
-from "../api/ticket.js";
+from "../api/tickets.js";
+
+import {
+    isAuthenticated,
+    logout
+}
+from "../api/auth.js";
 
 import {
     formatDate
@@ -11,71 +15,69 @@ import {
 from "../utils/formatDate.js";
 
 import {
-    logout,
-    isAuthenticated
-}
-from "../api/auth.js";
-
-import {
     debounce
 }
 from "../utils/debounce.js";
 
-import {
-    openModal,
-    showToast
-}
-from "./ui.js";
-
-import {
-    required,
-    minLength,
-    maxLength,
-    email,
-    oneOf,
-    validateField,
-    validateForm
-}
-from "./form.js";
+const logoutBtn =
+    document.getElementById(
+        "logoutBtn"
+    );
 
 const loadingState =
-    document.getElementById("loadingState");
+    document.getElementById(
+        "loadingState"
+    );
 
 const errorState =
-    document.getElementById("errorState");
+    document.getElementById(
+        "errorState"
+    );
 
 const emptyState =
-    document.getElementById("emptyState");
+    document.getElementById(
+        "emptyState"
+    );
 
-const tableContainer =
-    document.getElementById("tableContainer");
+const ticketsContainer =
+    document.getElementById(
+        "ticketsContainer"
+    );
 
-const tableBody =
-    document.getElementById("ticketsTableBody");
+const ticketTableBody =
+    document.getElementById(
+        "ticketTableBody"
+    );
 
 const retryBtn =
-    document.getElementById("retryBtn");
-
-const logoutBtn =
-    document.getElementById("logoutBtn");
-
-const newTicketBtn =
-    document.getElementById("newTicketBtn");
+    document.getElementById(
+        "retryBtn"
+    );
 
 const searchInput =
-    document.getElementById("searchInput");
+    document.getElementById(
+        "searchInput"
+    );
 
 const statusFilter =
-    document.getElementById("statusFilter");
+    document.getElementById(
+        "statusFilter"
+    );
 
 const priorityFilter =
-    document.getElementById("priorityFilter");
+    document.getElementById(
+        "priorityFilter"
+    );
 
 const sortSelect =
-    document.getElementById("sortSelect");
+    document.getElementById(
+        "sortSelect"
+    );
 
 const pagination =
-    document.getElementById("pagination");
+    document.getElementById(
+        "pagination"
+    );
 
 const state = {
 
@@ -83,68 +85,9 @@ const state = {
     status:"",
     priority:"",
     order:"desc",
-    page:1
+    page:1,
+    limit:10
 };
-
-let usersMap = {};
-
-let createModalRef =
-    null;
-
-const CREATE_RULES = {
-    title:[
-        required,
-        minLength(3),
-        maxLength(200)
-    ],
-    description:[
-        required,
-        minLength(10),
-        maxLength(5000)
-    ],
-    customerName:[
-        required,
-        maxLength(100)
-    ],
-    customerEmail:[
-        required,
-        email
-    ],
-    priority:[
-        required,
-        oneOf([
-            "urgent",
-            "high",
-            "medium",
-            "low"
-        ])
-    ],
-    category:[
-        required,
-        oneOf([
-            "auth",
-            "billing",
-            "bug",
-            "feature"
-        ])
-    ]
-};
-
-function escapeHtml(text){
-
-    if(text === null || text === undefined){
-
-        return "";
-    }
-
-    const div =
-        document.createElement("div");
-
-    div.textContent =
-        String(text);
-
-    return div.innerHTML;
-}
 
 export async function initTicketsList(){
 
@@ -168,11 +111,6 @@ function bindEvents(){
         handleLogout
     );
 
-    newTicketBtn.addEventListener(
-        "click",
-        openCreateTicketModal
-    );
-
     retryBtn.addEventListener(
         "click",
         refreshTickets
@@ -180,6 +118,7 @@ function bindEvents(){
 
     searchInput.addEventListener(
         "input",
+
         debounce((event)=>{
 
             state.search =
@@ -228,555 +167,36 @@ function bindEvents(){
             refreshTickets();
         }
     );
-
-    tableBody.addEventListener(
-        "click",
-        (event)=>{
-
-            const row =
-                event.target.closest(
-                    "tr[data-ticket-id]"
-                );
-
-            if(!row){
-
-                return;
-            }
-
-            const id =
-                row.getAttribute(
-                    "data-ticket-id"
-                );
-
-            window.location.href =
-                `./ticket-detail.html?id=${encodeURIComponent(id)}`;
-        }
-    );
-
-    tableBody.addEventListener(
-        "keydown",
-        (event)=>{
-
-            if(event.key !== "Enter" && event.key !== " "){
-
-                return;
-            }
-
-            const row =
-                event.target.closest(
-                    "tr[data-ticket-id]"
-                );
-
-            if(!row){
-
-                return;
-            }
-
-            event.preventDefault();
-
-            const id =
-                row.getAttribute(
-                    "data-ticket-id"
-                );
-
-            window.location.href =
-                `./ticket-detail.html?id=${encodeURIComponent(id)}`;
-        }
-    );
-}
-
-function handleLogout(){
-
-    logout();
-
-    window.location.href =
-        "index.html";
-}
-
-function getCreateFormValues(form){
-
-    return {
-        title: form.title.value,
-        description: form.description.value,
-        customerName: form.customerName.value,
-        customerEmail: form.customerEmail.value,
-        priority: form.priority.value,
-        category: form.category.value,
-        assignedTo: form.assignedTo.value
-    };
-}
-
-function setFieldError(form, field, message){
-
-    const span =
-        form.querySelector(
-            `[data-error-for="${field}"]`
-        );
-
-    if(span){
-
-        span.textContent =
-            message || "";
-    }
-
-    const control =
-        form.elements[field];
-
-    if(control){
-
-        control.classList.toggle(
-            "input-invalid",
-            Boolean(message)
-        );
-    }
-}
-
-function clearCreateErrors(form){
-
-    Object.keys(CREATE_RULES).forEach((field)=>{
-
-        setFieldError(
-            form,
-            field,
-            ""
-        );
-    });
-}
-
-function updateCreateSubmitState(form, submitBtn){
-
-    const values =
-        getCreateFormValues(form);
-
-    const { valid } =
-        validateForm(
-            CREATE_RULES,
-            (field)=>
-                values[field]
-        );
-
-    submitBtn.disabled =
-        !valid;
-}
-
-function openCreateTicketModal(){
-
-    if(createModalRef){
-
-        return;
-    }
-
-    const form =
-        document.createElement("form");
-
-    form.id =
-        "createTicketForm";
-
-    form.className =
-        "stack-form";
-
-    form.innerHTML = `
-        <div class="form-field">
-            <label for="ct-title">Title</label>
-            <input class="input-control" id="ct-title" name="title" type="text" autocomplete="off">
-            <span class="field-error" data-error-for="title"></span>
-        </div>
-        <div class="form-field">
-            <label for="ct-desc">Description</label>
-            <textarea class="input-control textarea" id="ct-desc" name="description" rows="4"></textarea>
-            <span class="field-error" data-error-for="description"></span>
-        </div>
-        <div class="form-field">
-            <label for="ct-cname">Customer name</label>
-            <input class="input-control" id="ct-cname" name="customerName" type="text" autocomplete="name">
-            <span class="field-error" data-error-for="customerName"></span>
-        </div>
-        <div class="form-field">
-            <label for="ct-cemail">Customer email</label>
-            <input class="input-control" id="ct-cemail" name="customerEmail" type="email" autocomplete="email">
-            <span class="field-error" data-error-for="customerEmail"></span>
-        </div>
-        <div class="form-field form-field--row">
-            <div>
-                <label for="ct-priority">Priority</label>
-                <select class="input-control" id="ct-priority" name="priority">
-                    <option value="">Select…</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                </select>
-                <span class="field-error" data-error-for="priority"></span>
-            </div>
-            <div>
-                <label for="ct-category">Category</label>
-                <select class="input-control" id="ct-category" name="category">
-                    <option value="">Select…</option>
-                    <option value="auth">Auth</option>
-                    <option value="billing">Billing</option>
-                    <option value="bug">Bug</option>
-                    <option value="feature">Feature</option>
-                </select>
-                <span class="field-error" data-error-for="category"></span>
-            </div>
-        </div>
-        <div class="form-field">
-            <label for="ct-assign">Assignee (optional)</label>
-            <select class="input-control" id="ct-assign" name="assignedTo">
-                <option value="">Unassigned</option>
-            </select>
-        </div>
-    `;
-
-    const assignSelect =
-        form.elements.assignedTo;
-
-    Object.entries(usersMap).forEach(([id, name])=>{
-
-        const opt =
-            document.createElement("option");
-
-        opt.value =
-            id;
-
-        opt.textContent =
-            name;
-
-        assignSelect.append(opt);
-    });
-
-    const footer =
-        document.createElement("div");
-
-    footer.className =
-        "modal-footer modal-footer--row";
-
-    const cancel =
-        document.createElement("button");
-
-    cancel.type =
-        "button";
-
-    cancel.className =
-        "btn btn--secondary";
-
-    cancel.textContent =
-        "Cancel";
-
-    const submitBtn =
-        document.createElement("button");
-
-    submitBtn.type =
-        "submit";
-
-    submitBtn.className =
-        "btn btn--primary";
-
-    submitBtn.textContent =
-        "Create";
-
-    submitBtn.disabled =
-        true;
-
-    footer.append(
-        cancel,
-        submitBtn
-    );
-
-    createModalRef =
-        openModal({
-            title:"New ticket",
-            content: form,
-            footer,
-            onClose(){
-
-                createModalRef = null;
-            }
-        });
-
-    cancel.addEventListener(
-        "click",
-        ()=>{
-
-            createModalRef.close();
-
-            createModalRef = null;
-        }
-    );
-
-    function bindBlur(name){
-
-        form.elements[name].addEventListener(
-            "blur",
-            ()=>{
-
-                const values =
-                    getCreateFormValues(form);
-
-                const msg =
-                    validateField(
-                        values[name],
-                        CREATE_RULES[name]
-                    );
-
-                setFieldError(
-                    form,
-                    name,
-                    msg || ""
-                );
-
-                updateCreateSubmitState(
-                    form,
-                    submitBtn
-                );
-            }
-        );
-    }
-
-    [
-        "title",
-        "description",
-        "customerName",
-        "customerEmail",
-        "priority",
-        "category"
-    ].forEach(bindBlur);
-
-    form.addEventListener(
-        "input",
-        ()=>{
-
-            updateCreateSubmitState(
-                form,
-                submitBtn
-            );
-        }
-    );
-
-    form.addEventListener(
-        "change",
-        ()=>{
-
-            updateCreateSubmitState(
-                form,
-                submitBtn
-            );
-        }
-    );
-
-    form.addEventListener(
-        "submit",
-        async (event)=>{
-
-            event.preventDefault();
-
-            clearCreateErrors(form);
-
-            const values =
-                getCreateFormValues(form);
-
-            const { valid, errors } =
-                validateForm(
-                    CREATE_RULES,
-                    (field)=>
-                        values[field]
-                );
-
-            Object.entries(errors).forEach(([field, msg])=>{
-
-                setFieldError(
-                    form,
-                    field,
-                    msg
-                );
-            });
-
-            if(!valid){
-
-                showToast(
-                    "Fix the highlighted fields",
-                    "error"
-                );
-
-                return;
-            }
-
-            submitBtn.disabled =
-                true;
-
-            const now =
-                new Date().toISOString();
-
-            const payload = {
-                title: values.title.trim(),
-                description: values.description.trim(),
-                customerName: values.customerName.trim(),
-                customerEmail: values.customerEmail.trim(),
-                priority: values.priority,
-                category: values.category,
-                status: "open",
-                assignedTo:
-                    values.assignedTo === ""
-                        ? null
-                        : Number(
-                            values.assignedTo
-                        ),
-                createdAt: now,
-                updatedAt: now
-            };
-
-            try{
-
-                await createTicket(payload);
-
-                createModalRef.close();
-
-                createModalRef = null;
-
-                showToast(
-                    "Ticket created",
-                    "success"
-                );
-
-                state.page = 1;
-
-                await refreshTickets();
-            }
-            catch(error){
-
-                console.error(error);
-
-                showToast(
-                    "Could not create ticket",
-                    "error"
-                );
-
-                submitBtn.disabled =
-                    false;
-            }
-        }
-    );
-
-    updateCreateSubmitState(
-        form,
-        submitBtn
-    );
-}
-
-function extractTicketsArray(body){
-
-    if(Array.isArray(body)){
-
-        return body;
-    }
-
-    if(body && typeof body === "object"){
-
-        if(Array.isArray(body.data)){
-
-            return body.data;
-        }
-
-        if(Array.isArray(body.tickets)){
-
-            return body.tickets;
-        }
-
-        if(Array.isArray(body.results)){
-
-            return body.results;
-        }
-    }
-
-    return [];
-}
-
-function extractTicketsTotal(body, tickets, headers){
-
-    if(
-        body &&
-        typeof body.items === "number" &&
-        !Number.isNaN(body.items)
-    ){
-
-        return body.items;
-    }
-
-    const hdr =
-        headers &&
-        typeof headers.get === "function"
-            ? headers.get("X-Total-Count")
-            : null;
-
-    if(hdr){
-
-        const n =
-            Number(hdr);
-
-        if(!Number.isNaN(n)){
-
-            return n;
-        }
-    }
-
-    return tickets.length;
-}
-
-function extractUsersArray(raw){
-
-    if(Array.isArray(raw)){
-
-        return raw;
-    }
-
-    if(raw && typeof raw === "object" && Array.isArray(raw.data)){
-
-        return raw.data;
-    }
-
-    return [];
 }
 
 async function refreshTickets(){
 
-    showLoading();
-
     try{
 
-        const [
-            ticketsResponse,
-            usersResponse
-        ] = await Promise.all([
+        showLoading();
 
-            listTickets(state),
+        const response =
+            await listTickets(state);
 
-            listUsers()
-        ]);
+        const body = response.data;
+        const tickets = Array.isArray(body)
+            ? body
+            : Array.isArray(body?.data)
+                ? body.data
+                : [];
 
-        const body =
-            ticketsResponse.data;
+        const hdr = response.headers.get("X-Total-Count");
+        const fromHdr =
+            hdr != null && hdr !== "" && !Number.isNaN(Number(hdr))
+                ? Number(hdr)
+                : NaN;
+        const total = !Number.isNaN(fromHdr)
+            ? fromHdr
+            : typeof body?.items === "number"
+                ? body.items
+                : tickets.length;
 
-        const tickets =
-            extractTicketsArray(body);
-
-        const total =
-            extractTicketsTotal(
-                body,
-                tickets,
-                ticketsResponse.headers
-            );
-
-        const users =
-            extractUsersArray(
-                usersResponse.data
-            );
-
-        buildUsersMap(users);
-
-        if(
-            !Array.isArray(tickets) ||
-            tickets.length === 0
-        ){
+        if(!tickets.length){
 
             showEmpty();
 
@@ -787,7 +207,8 @@ async function refreshTickets(){
 
         renderPagination(total);
 
-        showTable();
+        showContent();
+
     }
     catch(error){
 
@@ -797,50 +218,63 @@ async function refreshTickets(){
     }
 }
 
-function buildUsersMap(users){
-
-    usersMap = {};
-
-    users.forEach((user)=>{
-
-        usersMap[user.id] =
-            user.name;
-    });
-}
-
 function renderTable(tickets){
 
-    const list =
-        Array.isArray(tickets)
-            ? tickets
-            : [];
+    ticketTableBody.innerHTML =
+        tickets.map((ticket)=>{
 
-    const rows = list.map((ticket)=>{
+            return `
+                <tr
+                    class="ticket-row"
+                    data-id="${ticket.id}"
+                >
 
-        return `
-            <tr class="ticket-row" data-ticket-id="${ticket.id}" role="link" tabindex="0">
+                    <td>
+                        ${ticket.id}
+                    </td>
 
-                <td>${ticket.id}</td>
+                    <td>
+                        ${ticket.title}
+                    </td>
 
-                <td>${escapeHtml(ticket.title)}</td>
+                    <td>
+                        ${ticket.customerName}
+                    </td>
 
-                <td>${escapeHtml(ticket.customerName)}</td>
+                    <td>
+                        ${ticket.priority}
+                    </td>
 
-                <td class="priority-${ticket.priority}">
-                    ${escapeHtml(ticket.priority)}
-                </td>
+                    <td>
+                        ${ticket.status}
+                    </td>
 
-                <td>${escapeHtml(ticket.status)}</td>
+                    <td>
+                        ${formatDate(
+                            ticket.createdAt
+                        )}
+                    </td>
 
-                <td>${escapeHtml(usersMap[ticket.assignedTo] || "Unassigned")}</td>
+                </tr>
+            `;
+        }).join("");
 
-                <td>${formatDate(ticket.createdAt)}</td>
+    const rows =
+        document.querySelectorAll(
+            ".ticket-row"
+        );
 
-            </tr>
-        `;
-    }).join("");
+    rows.forEach((row)=>{
 
-    tableBody.innerHTML = rows;
+        row.addEventListener(
+            "click",
+            ()=>{
+
+                window.location.href =
+                    `ticket-detail.html?id=${row.dataset.id}`;
+            }
+        );
+    });
 }
 
 function renderPagination(total){
@@ -871,8 +305,14 @@ function renderPagination(total){
 
         buttons += `
             <button
-                type="button"
-                class="${state.page === i ? "active" : ""}"
+                class="
+                    ${
+                        state.page === i
+                        ? "active"
+                        : ""
+                    }
+                "
+
                 data-page="${i}"
             >
                 ${i}
@@ -905,6 +345,14 @@ function renderPagination(total){
     });
 }
 
+function handleLogout(){
+
+    logout();
+
+    window.location.href =
+        "index.html";
+}
+
 function showLoading(){
 
     loadingState.classList.remove(
@@ -919,11 +367,7 @@ function showLoading(){
         "hidden"
     );
 
-    tableContainer.classList.add(
-        "hidden"
-    );
-
-    pagination.classList.add(
+    ticketsContainer.classList.add(
         "hidden"
     );
 }
@@ -942,11 +386,7 @@ function showError(){
         "hidden"
     );
 
-    tableContainer.classList.add(
-        "hidden"
-    );
-
-    pagination.classList.add(
+    ticketsContainer.classList.add(
         "hidden"
     );
 }
@@ -965,16 +405,12 @@ function showEmpty(){
         "hidden"
     );
 
-    tableContainer.classList.add(
-        "hidden"
-    );
-
-    pagination.classList.add(
+    ticketsContainer.classList.add(
         "hidden"
     );
 }
 
-function showTable(){
+function showContent(){
 
     loadingState.classList.add(
         "hidden"
@@ -988,7 +424,7 @@ function showTable(){
         "hidden"
     );
 
-    tableContainer.classList.remove(
+    ticketsContainer.classList.remove(
         "hidden"
     );
 }

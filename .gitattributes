@@ -1,0 +1,6 @@
+# Keep text files as LF in the repo and in the working tree (avoids CRLF warnings on Windows).
+* text=auto eol=lf
+
+# Windows-only scripts may use CRLF intentionally
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -4,559 +4,416 @@ import {
     deleteTicket,
     listComments,
     addComment,
-    listUsers
-}
-from "../api/ticket.js";
-
-import {
-    formatDateTime
-}
-from "../utils/formatDate.js";
-
-import {
-    logout,
-    isAuthenticated,
-    getCurrentUser
-}
-from "../api/auth.js";
-
-import {
-    showToast,
-    confirmDialog
-}
-from "./ui.js";
-
-const loadingEl =
-    document.getElementById("detailLoading");
-
-const errorEl =
-    document.getElementById("detailError");
-
-const contentEl =
-    document.getElementById("detailContent");
-
-const retryBtn =
-    document.getElementById("detailRetry");
-
-const logoutBtn =
-    document.getElementById("logoutBtn");
-
-    document.getElementById("deleteTicketBtn");
-
-const statusSelect =
-    document.getElementById("detailStatus");
-
-const prioritySelect =
-    document.getElementById("detailPriority");
-
-const assigneeSelect =
-    document.getElementById("detailAssignee");
-
-const commentsList =
-    document.getElementById("commentsList");
-
-const commentForm =
-    document.getElementById("commentForm");
-
-const commentInput =
-    document.getElementById("commentContent");
-
-const commentSubmit =
-    document.getElementById("commentSubmit");
-
-let ticketId =
-    null;
-
-let currentTicket =
-    null;
-
-let usersById =
-    {};
-
-function escapeHtml(text){
-
-    if(text === null || text === undefined){
-
-        return "";
+  } from "../api/tickets.js";
+  import { get } from "../api/client.js";
+  import { getCurrentUser } from "../api/auth.js";
+  import { requireAuth, initLogout } from "./auth.js";
+  import { formatDateTime } from "../utils/formatDate.js";
+  import { showToast, confirmDialog, showLoader, hideLoader } from "./ui.js";
+  
+  let usersCache = null;
+  let usersLoadPromise = null;
+  
+  async function loadUsersOnce() {
+    if (usersCache) return usersCache;
+    if (!usersLoadPromise) {
+      usersLoadPromise = get("/users")
+        .then((res) => {
+          const body = res.data;
+          const users = Array.isArray(body)
+            ? body
+            : Array.isArray(body?.data)
+              ? body.data
+              : [];
+          usersCache = users;
+          return usersCache;
+        })
+        .finally(() => {
+          usersLoadPromise = null;
+        });
+    }
+    return usersLoadPromise;
+  }
+  
+  function userNameMap(users) {
+    return new Map(users.map((u) => [u.id, u.name]));
+  }
+  
+  function parseTicketId() {
+    const idStr = new URLSearchParams(window.location.search).get("id");
+    if (idStr == null || idStr === "") return null;
+    const n = Number(idStr);
+    if (!Number.isInteger(n) || n < 1) return null;
+    return n;
+  }
+  
+  function setError(message) {
+    const text = document.getElementById("error-text");
+    const box = document.getElementById("error");
+    if (text) text.textContent = message;
+    if (box) box.hidden = false;
+  }
+  
+  function renderTicket(ticket) {
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val == null || val === "" ? "—" : String(val);
+    };
+  
+    setText("ticket-id", `#${ticket.id}`);
+    document.title = `DeskHub — ${ticket.title ?? "Ticket"}`;
+  
+    const title = document.getElementById("ticket-title");
+    if (title) title.textContent = ticket.title ?? "";
+  
+    setText("ticket-customer", ticket.customerName);
+    setText("ticket-customer-email", ticket.customerEmail);
+    setText("ticket-category", ticket.category);
+    setText("ticket-created", formatDateTime(ticket.createdAt));
+    setText("ticket-updated", formatDateTime(ticket.updatedAt));
+  
+    const desc = document.getElementById("ticket-description");
+    if (desc) desc.textContent = ticket.description ?? "—";
+  
+    const statusEl = document.getElementById("status-select");
+    if (statusEl) statusEl.value = ticket.status ?? "open";
+  
+    const priEl = document.getElementById("priority-select");
+    if (priEl) priEl.value = ticket.priority ?? "medium";
+  
+    const asEl = document.getElementById("assignee-select");
+    if (asEl) {
+      const v = ticket.assignedTo == null ? "" : String(ticket.assignedTo);
+      if ([...asEl.options].some((o) => o.value === v)) asEl.value = v;
+      else asEl.value = "";
+    }
+  }
+  
+  function fillAssigneeSelect(selectEl, users, assignedTo) {
+    const want = assignedTo == null ? "" : String(assignedTo);
+    selectEl.replaceChildren();
+  
+    const un = document.createElement("option");
+    un.value = "";
+    un.textContent = "Unassigned";
+    selectEl.appendChild(un);
+  
+    for (const u of users) {
+      const o = document.createElement("option");
+      o.value = String(u.id);
+      o.textContent = u.name;
+      selectEl.appendChild(o);
+    }
+  
+    if (want && [...selectEl.options].some((o) => o.value === want)) {
+      selectEl.value = want;
+    } else {
+      selectEl.value = "";
+    }
+  }
+  
+  function renderComments(comments, nameByUserId) {
+    const ul = document.getElementById("comments-list");
+    if (!ul) return;
+  
+    ul.replaceChildren();
+    const sorted = [...comments].sort((a, b) =>
+      String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? ""))
+    );
+  
+    for (const c of sorted) {
+      const li = document.createElement("li");
+      li.className = "comment-item";
+  
+      const head = document.createElement("div");
+      head.className = "comment-head";
+      const author = nameByUserId.get(c.authorId) ?? `User #${c.authorId}`;
+      head.textContent = `${author} · ${formatDateTime(c.createdAt)}`;
+  
+      const body = document.createElement("p");
+      body.className = "comment-body";
+      body.textContent = c.content ?? "";
+  
+      li.append(head, body);
+      ul.appendChild(li);
+    }
+  }
+  
+  export async function initTicketDetail() {
+    if (!requireAuth()) return;
+    initLogout("#logout-btn");
+  
+    const ticketId = parseTicketId();
+    const loading = document.getElementById("loading");
+    const errBox = document.getElementById("error");
+    const shell = document.getElementById("ticket-shell");
+    const commentsShell = document.getElementById("comments-shell");
+  
+    if (ticketId == null) {
+      setError("Missing or invalid ticket id. Open a ticket from the tickets list.");
+      if (loading) loading.hidden = true;
+      return;
     }
 
-    const div =
-        document.createElement("div");
+    const statusSelect = document.getElementById("status-select");
+    const prioritySelect = document.getElementById("priority-select");
+    const assigneeSelect = document.getElementById("assignee-select");
+    const editBtn = document.getElementById("edit-ticket-btn");
+    const saveBtn = document.getElementById("save-ticket-btn");
+    const cancelBtn = document.getElementById("cancel-edit-btn");
 
-    div.textContent =
-        String(text);
+    /** Last saved values from the server (for Cancel + change detection). */
+    let controlsSnapshot = {
+      status: "open",
+      priority: "medium",
+      assignedTo: null,
+    };
 
-    return div.innerHTML;
-}
+    let lastTicket = null;
 
-function parseTicketId(){
-
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    const raw =
-        params.get("id");
-
-    const id =
-        raw === null
-            ? NaN
-            : Number(raw);
-
-    if(!Number.isFinite(id) || id < 1){
-
-        return null;
+    function syncSnapshotFromTicket(ticket) {
+      controlsSnapshot = {
+        status: ticket.status ?? "open",
+        priority: ticket.priority ?? "medium",
+        assignedTo:
+          ticket.assignedTo == null || ticket.assignedTo === ""
+            ? null
+            : Number(ticket.assignedTo),
+      };
+      if (
+        controlsSnapshot.assignedTo != null &&
+        !Number.isFinite(controlsSnapshot.assignedTo)
+      ) {
+        controlsSnapshot.assignedTo = null;
+      }
     }
 
-    return id;
-}
-
-export async function initTicketDetail(){
-
-    if(!isAuthenticated()){
-
-        window.location.href =
-            "index.html";
-
-        return;
+    function applySnapshotToSelects() {
+      if (!statusSelect || !prioritySelect || !assigneeSelect) return;
+      statusSelect.value = controlsSnapshot.status;
+      prioritySelect.value = controlsSnapshot.priority;
+      const a = controlsSnapshot.assignedTo;
+      assigneeSelect.value = a == null ? "" : String(a);
     }
 
-    ticketId =
-        parseTicketId();
-
-    if(ticketId === null){
-
-        window.location.href =
-            "ticket.html";
-
-        return;
+    function setControlsEditing(editing) {
+      if (!statusSelect || !prioritySelect || !assigneeSelect) return;
+      statusSelect.disabled = !editing;
+      prioritySelect.disabled = !editing;
+      assigneeSelect.disabled = !editing;
+      if (editBtn) editBtn.hidden = editing;
+      if (saveBtn) saveBtn.hidden = !editing;
+      if (cancelBtn) cancelBtn.hidden = !editing;
     }
 
-    logoutBtn.addEventListener(
-        "click",
-        ()=>{
+    async function loadAll() {
+      
+      if (loading) loading.hidden = false;
+      if (errBox) errBox.hidden = true;
+      if (shell) shell.hidden = true;
+      if (commentsShell) commentsShell.hidden = true;
 
-            logout();
-
-            window.location.href =
-                "index.html";
-        }
-    );
-
-    retryBtn.addEventListener(
-        "click",
-        loadAll
-    );
-
-    deleteBtn.addEventListener(
-        "click",
-        onDeleteTicket
-    );
-
-    statusSelect.addEventListener(
-        "change",
-        ()=>patchField(
-            "status",
-            statusSelect.value
-        )
-    );
-
-    prioritySelect.addEventListener(
-        "change",
-        ()=>patchField(
-            "priority",
-            prioritySelect.value
-        )
-    );
-
-    assigneeSelect.addEventListener(
-        "change",
-        ()=>{
-
-            const raw =
-                assigneeSelect.value;
-
-            const assignedTo =
-                raw === ""
-                    ? null
-                    : Number(raw);
-
-            patchField(
-                "assignedTo",
-                assignedTo
-            );
-        }
-    );
-
-    commentForm.addEventListener(
-        "submit",
-        onAddComment
-    );
-
-    await loadAll();
-}
-
-async function loadAll(){
-
-    showLoading();
-
-    try{
-
-        const [
-            ticketRes,
-            commentsRes,
-            usersRes
-        ] = await Promise.all([
-
+      try {
+        const [users, ticket, commentsRaw] = await Promise.all([
+            loadUsersOnce(),
             getTicket(ticketId),
-
             listComments(ticketId),
+          ]);
+        const nameByUserId = userNameMap(users);
+        const comments = Array.isArray(commentsRaw) ? commentsRaw : [];
 
-            listUsers()
-        ]);
-
-        const ticket =
-            ticketRes.data;
-
-        const comments =
-            Array.isArray(commentsRes.data)
-                ? commentsRes.data
-                : [];
-
-        const users =
-            Array.isArray(usersRes.data)
-                ? usersRes.data
-                : [];
-
-        usersById = {};
-
-        users.forEach((u)=>{
-
-            usersById[u.id] = u;
-        });
-
-        currentTicket =
-            ticket;
-
-        comments.sort((a, b)=>{
-
-            const ta =
-                new Date(a.createdAt).getTime();
-
-            const tb =
-                new Date(b.createdAt).getTime();
-
-            return ta - tb;
-        });
+        const assigneeEl = document.getElementById("assignee-select");
+        if (assigneeEl) fillAssigneeSelect(assigneeEl, users, ticket.assignedTo);
 
         renderTicket(ticket);
+        lastTicket = ticket && typeof ticket === "object" ? { ...ticket } : null;
+        renderComments(comments, nameByUserId);
 
-        renderComments(comments);
+        syncSnapshotFromTicket(ticket);
+        applySnapshotToSelects();
+        setControlsEditing(false);
 
-        fillAssigneeOptions(users, ticket.assignedTo);
-
-        showContent();
+        if (shell) shell.hidden = false;
+        if (commentsShell) commentsShell.hidden = false;
+      } catch (err) {
+        console.error(err);
+        setError(err?.message || "Could not load this ticket.");
+      } finally {
+        if (loading) loading.hidden = true;
+      }
     }
-    catch(error){
 
-        console.error(error);
+    await loadAll();
 
-        showError();
-    }
-}
-
-function showLoading(){
-
-    loadingEl.classList.remove(
-        "hidden"
-    );
-
-    errorEl.classList.add(
-        "hidden"
-    );
-
-    contentEl.classList.add(
-        "hidden"
-    );
-}
-
-function showError(){
-
-    loadingEl.classList.add(
-        "hidden"
-    );
-
-    errorEl.classList.remove(
-        "hidden"
-    );
-
-    contentEl.classList.add(
-        "hidden"
-    );
-}
-
-function showContent(){
-
-    loadingEl.classList.add(
-        "hidden"
-    );
-
-    errorEl.classList.add(
-        "hidden"
-    );
-
-    contentEl.classList.remove(
-        "hidden"
-    );
-}
-
-function renderTicket(ticket){
-
-    document.getElementById("detailTitle").textContent =
-        ticket.title;
-
-    document.getElementById("detailDescription").innerHTML =
-        escapeHtml(
-            ticket.description
-        ).replace(
-            /\n/g,
-            "<br>"
-        );
-
-    document.getElementById("detailCustomerName").textContent =
-        ticket.customerName;
-
-    document.getElementById("detailCustomerEmail").textContent =
-        ticket.customerEmail;
-
-    document.getElementById("detailCategory").textContent =
-        ticket.category;
-
-    document.getElementById("detailCreated").textContent =
-        formatDateTime(
-            ticket.createdAt
-        );
-
-    document.getElementById("detailUpdated").textContent =
-        formatDateTime(
-            ticket.updatedAt
-        );
-
-    statusSelect.value =
-        ticket.status;
-
-    prioritySelect.value =
-        ticket.priority;
-
-    assigneeSelect.value =
-        ticket.assignedTo === null || ticket.assignedTo === undefined
-            ? ""
-            : String(ticket.assignedTo);
-}
-
-function fillAssigneeOptions(users, currentAssigned){
-
-    assigneeSelect.innerHTML =
-        `<option value="">Unassigned</option>`;
-
-    users.forEach((u)=>{
-
-        const opt =
-            document.createElement("option");
-
-        opt.value =
-            String(u.id);
-
-        opt.textContent =
-            u.name;
-
-        assigneeSelect.append(opt);
+    editBtn?.addEventListener("click", () => {
+      applySnapshotToSelects();
+      setControlsEditing(true);
+      statusSelect?.focus();
     });
 
-    assigneeSelect.value =
-        currentAssigned === null || currentAssigned === undefined
-            ? ""
-            : String(currentAssigned);
-}
+    cancelBtn?.addEventListener("click", () => {
+      applySnapshotToSelects();
+      setControlsEditing(false);
+    });
 
-function renderComments(comments){
+    saveBtn?.addEventListener("click", async () => {
+      if (!statusSelect || !prioritySelect || !assigneeSelect) return;
 
-    if(comments.length === 0){
+      const rawAssign = assigneeSelect.value;
+      const assignedNum = rawAssign === "" ? null : Number(rawAssign);
+      const assignedTo =
+        assignedNum != null && Number.isFinite(assignedNum) ? assignedNum : null;
 
-        commentsList.innerHTML =
-            `<p class="muted">No comments yet.</p>`;
+      const next = {
+        status: statusSelect.value,
+        priority: prioritySelect.value,
+        assignedTo,
+      };
 
+      const unchanged =
+        next.status === controlsSnapshot.status &&
+        next.priority === controlsSnapshot.priority &&
+        next.assignedTo === controlsSnapshot.assignedTo;
+
+      if (unchanged) {
+        showToast("No changes to save.", "info");
+        setControlsEditing(false);
         return;
-    }
+      }
 
-    commentsList.innerHTML =
-        comments.map((c)=>{
+      const rollbackSnapshot = { ...controlsSnapshot };
+      const rollbackTicket =
+        lastTicket && typeof lastTicket === "object" ? { ...lastTicket } : null;
 
-            const author =
-                usersById[c.authorId]?.name
-                || "Unknown";
+      const optimisticUpdatedAt = new Date().toISOString();
 
-            const when =
-                formatDateTime(
-                    c.createdAt
-                );
+      // Optimistic UI: treat save as succeeded immediately
+      controlsSnapshot = {
+        status: next.status,
+        priority: next.priority,
+        assignedTo: next.assignedTo,
+      };
+      applySnapshotToSelects();
 
-            return `
-                <article class="comment-card">
-                    <header class="comment-meta">
-                        <strong>${escapeHtml(author)}</strong>
-                        <span class="muted">${escapeHtml(when)}</span>
-                    </header>
-                    <p class="comment-body">${escapeHtml(c.content).replace(/\n/g, "<br>")}</p>
-                </article>
-            `;
-        }).join("");
-}
-
-async function patchField(field, value){
-
-    const prev =
-        currentTicket[field];
-
-    if(prev === value){
-
-        return;
-    }
-
-    if(field === "assignedTo" && prev === null && value === null){
-
-        return;
-    }
-
-    try{
-
-        const body = {
-            [field]: value,
-            updatedAt: new Date().toISOString()
+      if (lastTicket) {
+        lastTicket = {
+          ...lastTicket,
+          status: next.status,
+          priority: next.priority,
+          assignedTo: next.assignedTo,
+          updatedAt: optimisticUpdatedAt,
         };
+        renderTicket(lastTicket);
+      }
 
-        const { data } =
-            await updateTicket(
-                ticketId,
-                body
+      setControlsEditing(false);
+
+      if (saveBtn) saveBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
+      if (editBtn) editBtn.disabled = true;
+
+      try {
+        const updated = await updateTicket(ticketId, {
+          status: next.status,
+          priority: next.priority,
+          assignedTo: next.assignedTo,
+        });
+
+        if (updated && typeof updated === "object" && updated.id != null) {
+          lastTicket = { ...updated };
+          syncSnapshotFromTicket(lastTicket);
+          applySnapshotToSelects();
+          renderTicket(lastTicket);
+        } else {
+          try {
+            const fresh = await getTicket(ticketId);
+            lastTicket =
+              fresh && typeof fresh === "object" ? { ...fresh } : lastTicket;
+            if (lastTicket) {
+              syncSnapshotFromTicket(lastTicket);
+              applySnapshotToSelects();
+              renderTicket(lastTicket);
+            }
+          } catch (reconcileErr) {
+            console.error(reconcileErr);
+            showToast(
+              "Saved, but could not refresh from server.",
+              "warning"
             );
+          }
+        }
 
-        currentTicket =
-            data;
+        showToast("Ticket updated", "success");
+      } catch (err) {
+        console.error(err);
+        controlsSnapshot = rollbackSnapshot;
+        applySnapshotToSelects();
+        if (rollbackTicket) {
+          lastTicket = rollbackTicket;
+          renderTicket(lastTicket);
+        } else {
+          await loadAll();
+        }
+        window.alert(err?.message || "Update failed.");
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (editBtn) editBtn.disabled = false;
+      }
+    });
 
-        showToast(
-            "Saved",
-            "success"
-        );
-
-        await loadAll();
-    }
-    catch(error){
-
-        console.error(error);
-
-        showToast(
-            "Update failed",
-            "error"
-        );
-
-        await loadAll();
-    }
-}
-
-async function onDeleteTicket(){
-
-    const ok =
-        await confirmDialog({
-            title: "Delete ticket",
-            message: "Are you sure you want to delete this ticket? This cannot be undone.",
-            confirmText: "Delete",
-            cancelText: "Cancel"
-        });
-
-    if(!ok){
-
+    document.getElementById("add-comment-btn")?.addEventListener("click", async () => {
+      const ta = document.getElementById("new-comment");
+      const content = (ta?.value ?? "").trim();
+      if (!content) return;
+  
+      const me = getCurrentUser();
+      if (!me?.id) {
+        window.alert("You must be signed in to comment.");
         return;
-    }
-
-    try{
-
-        await deleteTicket(ticketId);
-
-        showToast(
-            "Ticket deleted",
-            "success"
-        );
-
-        window.location.href =
-            "ticket.html";
-    }
-    catch(error){
-
-        console.error(error);
-
-        showToast(
-            "Delete failed",
-            "error"
-        );
-    }
-}
-
-async function onAddComment(event){
-
-    event.preventDefault();
-
-    const user =
-        getCurrentUser();
-
-    const content =
-        commentInput.value.trim();
-
-    if(content.length < 1){
-
-        showToast(
-            "Write a comment first",
-            "error"
-        );
-
-        return;
-    }
-
-    commentSubmit.disabled =
-        true;
-
-    try{
-
-        await addComment({
+      }
+  
+      showLoader("Posting comment")
+      try {
+        await Promise.all([
+          addComment({
             ticketId,
-            authorId: user.id,
+            authorId: me.id,
             content,
-            createdAt: new Date().toISOString()
-        });
-
-        commentInput.value =
-            "";
-
-        showToast(
-            "Comment added",
-            "success"
-        );
-
+          }),
+          new Promise((r) => setTimeout(r,2000)),
+        ]);
+        if (ta) ta.value = "";
+        showToast("Comment posted", "success");
         await loadAll();
-    }
-    catch(error){
-
-        console.error(error);
-
-        showToast(
-            "Could not add comment",
-            "error"
-        );
-    }
-    finally{
-
-        commentSubmit.disabled =
-            false;
-    }
-}
+      } catch (err) {
+        console.error(err);
+        window.alert(err?.message || "Could not post comment.");
+      }finally{
+        hideLoader();
+      }
+    });
+  
+    document.getElementById("delete-btn")?.addEventListener("click", async () => {
+      const ok = await confirmDialog(
+        "Delete this ticket permanently? This cannot be undone.",
+        {
+          title: "Delete ticket",
+          okText: "Delete",
+          cancelText: "Cancel",
+        }
+      );
+      if (!ok) return;
+      showLoader("Deleting ticket…");
+      try {
+        await deleteTicket(ticketId);
+        showToast("Ticket deleted", "success");
+        window.location.href = "tickets.html";
+      } catch (err) {
+        console.error(err);
+        showToast(err?.message || "Delete failed.", "error");
+      } finally {
+        hideLoader();
+      }
+    });
+  }
